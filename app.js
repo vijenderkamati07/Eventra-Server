@@ -2,6 +2,7 @@
 const express = require("express");
 const dotenev = require("dotenv").config();
 const mongoose = require("mongoose");
+const cookieParser = require("cookie-parser");
 
 
 //Local Modules
@@ -9,6 +10,7 @@ const apiRouter = require("./Router/apiRouter");
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/api", apiRouter);
 

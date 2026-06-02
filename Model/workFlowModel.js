@@ -1,10 +1,9 @@
-const { ObjectId } = require("mongodb");
 const mongoose = require("mongoose");
 
 const workflow = new mongoose.Schema(
   {
     userId: {
-      type: ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       require: true,
     },
     title: {
@@ -16,16 +15,13 @@ const workflow = new mongoose.Schema(
       require: true,
     },
     type: {
-      type: String,
-      require: true,
+      type: String
     },
     status: {
-      type: String,
-      require: true,
+      type: String
     },
     result: {
-      type: String,
-      require: true,
+      type: String
     },
   },
   { timestamps: true },

@@ -12,4 +12,5 @@ exports.generateToken = (userId, email) =>{
       expiresIn: '7d'
     }
   )
+  return token;
 }
