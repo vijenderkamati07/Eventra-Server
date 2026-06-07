@@ -1,30 +1,84 @@
 const mongoose = require("mongoose");
 
-const workflow = new mongoose.Schema(
+const workflowSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      require: true,
+      ref: "User",
+      required: true,
     },
-    title: {
+    workflowType: {
       type: String,
-      require: true,
+      enum: [
+        "quiz_generation",
+        "quiz_evaluation",
+        "revision_plan",
+        "weakness_analysis",
+      ],
+      required: true,
     },
-    inputText: {
+
+    topic: {
       type: String,
-      require: true,
+      required: true,
+      trim: true,
     },
-    type: {
-      type: String
+
+    difficulty: {
+      type: String,
+      enum: ["easy", "medium", "hard"],
+      default: "medium",
     },
+
     status: {
-      type: String
+      type: String,
+      enum: ["pending", "processing", "completed", "failed"],
+      default: "pending",
     },
-    result: {
-      type: String
+
+    workflowMetadata: {
+      questionCount: {
+        type: Number,
+        default: 10,
+      },
+
+      quizMode: {
+        type: String,
+        enum: ["mcq", "mixed", "theory"],
+        default: "mcq",
+      },
+
+      timeLimit: {
+        type: Number,
+      },
+    },
+
+    resultReference: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "resultModel",
+    },
+
+    resultModel: {
+      type: String,
+      enum: ["Quiz", "Evaluation", "RevisionPlan"],
+    },
+
+    errorMessage: {
+      type: String,
+      default: "",
+    },
+
+    startedAt: {
+      type: Date,
+    },
+
+    completedAt: {
+      type: Date,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
-module.exports = mongoose.model("Workflow", workflow);
+module.exports = mongoose.model("Workflow", workflowSchema);
