@@ -13,6 +13,7 @@ const workflowSchema = new mongoose.Schema(
         "quiz_generation",
         "quiz_evaluation",
         "revision_plan",
+        "weakArea_quiz_practise",
         "weakness_analysis",
       ],
       required: true,
