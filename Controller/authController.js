@@ -7,6 +7,39 @@ const bcrypt = require("bcryptjs");
 const User = require("../Model/userModel");
 const { generateToken } = require("../Utils/generateToken");
 
+exports.getMe = async (req, res) => {
+  try{
+
+    const user = await User.findById(req.user.userId);
+
+    if(!user){
+      return res.status(401).json({
+        success: false,
+        message: "User does not exists",
+        errors: ["USER_NOT_FOUND"],
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "User detail found",
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          email: user.email,
+        },
+      },
+    });
+  }catch(err){
+    return res.status(500).json({
+        success: false,
+        message: "Error while finding user",
+        errors: ["INTERNAL_SERVER_ERROR"],
+      });
+  }
+}
+
+
 exports.postLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -37,6 +70,8 @@ exports.postLogin = async (req, res) => {
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
+    console.log('login Success');
 
     return res.status(200).json({
       success: true,
@@ -75,6 +110,7 @@ exports.postSignup = [
     .withMessage("First Name must contain only alphabetic characters"),
 
   check("lastName")
+    .optional({ checkFalsy: true })
     .trim()
     .matches(/^[A-Za-z]+$/)
     .withMessage("Last Name must contain only alphabetic characters"),
@@ -106,22 +142,25 @@ exports.postSignup = [
     }),
 
   check("terms").custom((value) => {
-    if (value !== "on") {
+    if (!value) {
       throw new Error("You must accept the terms and conditions");
     }
     return true;
   }),
   (req, res) => {
     const { firstName, lastName, email, password, confirmPassword } = req.body;
+    console.log("cgeck start", req.body);
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
+      console.log(errors.array().map((err) => err.msg));
       return res.status(422).json({
         success: false,
         message: "Invalid input",
         errors: errors.array().map((err) => err.msg),
       });
     }
+    console.log("requested for signup")
 
     bcrypt
       .hash(password, 12)
