@@ -3,7 +3,7 @@ const express = require('express');
 
 //Local Modules -> Controllers
 const { postLogin, postSignup, postLogout, getMe } = require('../Controller/authController');
-const { postGenerateQuiz, postEvaluateQuiz, postWeakAreasPractise } = require('../Controller/quizController');
+const { postGenerateQuiz, postEvaluateQuiz, postWeakAreasPractise, getPopularSubject, getOneSubject, getOneQuiz } = require('../Controller/quizController');
 const { isAuth } = require('../Middleware/isAuth');
 
 
@@ -19,6 +19,9 @@ apiRouter.get('/user/me', isAuth, getMe);
 apiRouter.post('/quizzes/generate',isAuth, postGenerateQuiz);
 apiRouter.post('/quizzes/:quizId/submit',isAuth, postEvaluateQuiz);
 apiRouter.post('/quizzes/regenerate/:topic',isAuth, postWeakAreasPractise);
+apiRouter.get('/quizzes/popular-subjects', isAuth, getPopularSubject);
+apiRouter.get('/quizzes/subjects/:slug', isAuth, getOneSubject);
+apiRouter.get('/quizzes/find/:quizId', isAuth, getOneQuiz);
 
 
 

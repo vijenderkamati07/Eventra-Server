@@ -23,7 +23,10 @@ const quizSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
+    slug: {
+      type: String,
+      required: true,
+    },
     difficulty: {
       type: String,
       enum: ["easy", "medium", "hard"],

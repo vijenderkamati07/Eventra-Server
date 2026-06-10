@@ -6,7 +6,92 @@ const { validationResult } = require("express-validator");
 const Workflow = require("../Model/workFlowModel");
 const Quiz = require("../Model/quizModel");
 const QuizSubmitModel = require("../Model/quizSubmitModel");
+const Subject = require('../Model/subjectModel');
 const { generateQuiz, evaluateQuiz, generateWeakAreasQuiz } = require("../Services/AiService");
+
+
+exports.getPopularSubject = async (req, res) => {
+  try{
+    const subjects = await Subject.find()
+                    .sort({popularity: -1})
+                    .limit(15);          
+
+    if(!subjects){
+      return res.status(404).json({
+        success: false,
+        message: "No popular subject found for quiz",
+        errors: ["QUIZ_SUBJECT_NOT_FOUND"],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Popular Subjects for quiz found",
+      data: {
+        subjects
+      }
+    })
+  }catch(err){
+    return res.status(404).json({
+        success: false,
+        message: "Server error while finding subjects",
+        errors: err,
+      });
+  }
+}
+
+exports.getOneSubject = async (req, res) => {
+  const slug = req.params.slug
+  try{
+
+    const subject = await Subject.findOne({slug});
+    if(!subject){
+      return res.status(404).json({
+        success: false,
+        message: "No subject found for quiz",
+        errors: ["QUIZ_SUBJECT_NOT_FOUND"],
+      });
+    }
+
+      const attempt = await QuizSubmitModel.find({userId: req.user.userId, slug: slug}).sort({createdAt: -1});
+      if(!attempt){
+      return res.status(404).json({
+        success: false,
+        message: "user attempts not found",
+        errors: ["USER_ATTEMPT_NOT_FOUND"],
+      });
+    }
+      const communityQuizzes = await Quiz.find({ slug })
+                              .select("_id title difficulty questionCount createdAt userId")
+                              .populate("userId", "firstName")
+                              .sort({ createdAt: -1 })
+                              .limit(10);
+
+      if(!attempt){
+      return res.status(404).json({
+        success: false,
+        message: "Community Quizzes not found",
+        errors: ["QUIZZES_NOT_FOUND"],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Subject for quiz found",
+      data: {
+        subject,
+        attempt,
+        communityQuizzes
+      }
+    })
+  }catch(err){
+    return res.status(404).json({
+        success: false,
+        message: "Server error while finding subjects",
+        errors: err,
+      });
+  }
+}
 
 exports.postGenerateQuiz = [
   check("topic")
@@ -43,6 +128,38 @@ exports.postGenerateQuiz = [
     }
 
     try {
+      const slug = topic
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")   
+      .replace(/\s+/g, "-")       
+      .replace(/-+/g, "-"); 
+
+      const currentSubject = await Subject.findOne({slug});
+      let subjectid = null;
+
+      if(!currentSubject){
+        const newSubject = new Subject({
+          name: topic,
+          slug,
+          description: "",
+          isSystemSubject: false,
+          createdBy: req.user.userId,
+          popularity: 1,
+          subtopics: []
+        })
+        subjectid = newSubject._id;
+
+        await newSubject.save();
+      }else{
+
+        subjectid = currentSubject._id;
+        await Subject.findByIdAndUpdate(
+          subjectid,
+           { $inc: { popularity: 1 } }
+        )
+      }
+
       const newWorkflow = await new Workflow({
         userId: req.user.userId,
         workflowType: "quiz_generation",
@@ -69,7 +186,7 @@ exports.postGenerateQuiz = [
         //dont know how to update state to failed
         newWorkflow.status = "failed";
         newWorkflow.errorMessage = "Invalid AI response";
-        newWorkflow.save();
+        await newWorkflow.save();
         return res.status(400).json({
           success: false,
           message: "Quiz not generated",
@@ -83,11 +200,14 @@ exports.postGenerateQuiz = [
 
       const title = newWorkflow.topic + " " + newWorkflow.difficulty + " Quiz";
 
+      const tags = result.map((obj) => obj.tags);
+
       const quiz = await new Quiz({
         userId: req.user?.userId,
         workflowId: newWorkflow._id,
         title: title,
         topic: newWorkflow.topic,
+        slug,
         difficulty: newWorkflow.difficulty,
         questions: result,
         questionCount: result.length,
@@ -96,11 +216,24 @@ exports.postGenerateQuiz = [
         quizMetadata: {
           timeLimit: newWorkflow.workflowMetadata.timeLimit,
           quizMode: newWorkflow.workflowMetadata.quizMode,
-          tags: result.map((obj) => obj.tags),
+          tags,
         },
       });
 
       await quiz.save();
+
+      const uniqueTags = [...new Set(tags)];
+
+      await Subject.findByIdAndUpdate(
+        subjectid,
+        {
+          $addToSet: {
+            subtopics: {
+              $each: uniqueTags
+            }
+          }
+        }
+      );
 
       return res.status(200).json({
         success: true,
@@ -124,6 +257,12 @@ exports.postEvaluateQuiz = async (req, res) => {
   const quizId = req.params.quizId;
   const { userId } = req.user;
   const { topic, difficulty, answers } = req.body;
+  const slug = topic
+              .toLowerCase()
+              .trim()
+              .replace(/[^\w\s-]/g, "")   
+              .replace(/\s+/g, "-")       
+              .replace(/-+/g, "-"); 
 
   try {
     const actualAnswers = await Quiz.findById(quizId).select("questions");
@@ -208,6 +347,7 @@ exports.postEvaluateQuiz = async (req, res) => {
       workflowId: newWorkflow._id,
       answers: tempAnswers,
       topic,
+      slug,
       score: {
         gain: correctAnswersArr.length,
         total: questionCount,
@@ -423,3 +563,33 @@ exports.postWeakAreasPractise = async (req, res) => {
     });
   }
 };
+
+exports.getOneQuiz = async (req, res) => {
+  const quizId = req.params.quizId;
+  try{
+    const quiz = await Quiz.findById(quizId);
+    if(!quiz){
+      return res.status(404).json({
+        success: false,
+        message: "No Quiz found with given Id",
+        errors: ["QUIZ_NOT_FOUND"],
+      });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Quiz found for given Id",
+        data: {
+          quiz
+        }
+      });
+  }catch(err){
+    return res.status(404).json({
+        success: false,
+        message: "Server error while finding quiz",
+        errors: err,
+      });
+  }
+}
+
+
