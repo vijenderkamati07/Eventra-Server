@@ -45,6 +45,9 @@ const quizSubmitSchema = new mongoose.Schema(
       total: {
         type: Number,
       },
+      accuracy: {
+        type: Number,
+      }
     },
 
     correctAnswers: [
@@ -57,6 +60,9 @@ const quizSubmitSchema = new mongoose.Schema(
           type: String,
           required: true,
         },
+        tags: [{
+          type: String,
+        }]
       },
     ],
     wrongAnswers: [
@@ -68,7 +74,9 @@ const quizSubmitSchema = new mongoose.Schema(
         wrongAnswer: {
           type: String,
           required: true,
-        },
+        },tags: [{
+          type: String,
+        }]
       },
     ],
     weakAreas: [
