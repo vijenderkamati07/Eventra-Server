@@ -12,7 +12,10 @@ const quizSchema = new mongoose.Schema(
       ref: "Workflow",
       required: true,
     },
-
+    quizType:{
+      type: String,
+      enum: ['adaptive', 'normal'],
+    },
     title: {
       type: String,
       required: true,
