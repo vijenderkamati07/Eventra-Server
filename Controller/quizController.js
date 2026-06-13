@@ -194,7 +194,19 @@ exports.postGenerateQuiz = [
       //dont know how to update state to processing
       const result = await generateQuiz(topic, difficulty, questionCount);
 
-      if (!result || !Array.isArray(result) || result.length === 0) {
+      if(!result){
+        newWorkflow.status = "failed";
+        newWorkflow.errorMessage = "Invalid AI response";
+        await newWorkflow.save();
+        return res.status(400).json({
+          success: false,
+          message: "Quiz not generated",
+          errors: ["RESPONSE_NOT_GENERATED"],
+        });
+      }
+      const questions = result.questions;
+
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
         //dont know how to update state to failed
         newWorkflow.status = "failed";
         newWorkflow.errorMessage = "Invalid AI response";
@@ -210,8 +222,9 @@ exports.postGenerateQuiz = [
       newWorkflow.completedAt = new Date();
       await newWorkflow.save();
 
-      const tags = result.map((obj) => obj.tags);
+      const tags = questions.flatMap((obj) => obj.tags || []);
 
+      console.log('creating quiz')
       const quiz = await new Quiz({
         userId: req.user?.userId,
         workflowId: newWorkflow._id,
@@ -220,12 +233,12 @@ exports.postGenerateQuiz = [
         topic: newWorkflow.topic,
         slug,
         difficulty: newWorkflow.difficulty,
-        questions: result,
-        questionCount: result.length,
+        questions: questions,
+        questionCount: questions.length,
         status: "generated",
         aiModelUsed: "gemini-2.5-flash",
         quizMetadata: {
-          timeLimit: newWorkflow.workflowMetadata.timeLimit,
+          timeLimit: result.timeLimit,
           quizMode: newWorkflow.workflowMetadata.quizMode,
           tags,
         },
@@ -249,7 +262,6 @@ exports.postGenerateQuiz = [
         data: {
           quizId: quiz._id,
           workflowId: newWorkflow._id,
-          result,
         },
       });
     } catch (err) {
@@ -263,9 +275,8 @@ exports.postGenerateQuiz = [
 ];
 
 exports.postEvaluateQuiz = async (req, res) => {
-  const quizId = req.params.quizId;
   const { userId } = req.user;
-  const { topic, difficulty, answers, timeTaken } = req.body;
+  const { quizId, topic, difficulty, answers, timeTaken } = req.body;
   const slug = topic
     .toLowerCase()
     .trim()
@@ -361,10 +372,11 @@ exports.postEvaluateQuiz = async (req, res) => {
       answers: tempAnswers,
       topic,
       slug,
+      userAttempt: 'attempted',
       score: {
         gain: correctAnswersArr.length,
         total: questionCount,
-        accuracy,
+        accuracy: Math.floor(accuracy),
       },
       correctAnswers: correctAnswersArr,
       wrongAnswers: wrongAnswersArr,
@@ -398,6 +410,7 @@ exports.postEvaluateQuiz = async (req, res) => {
     newQuizEvaluationModel.weakAreas = response.weakAreas;
     newQuizEvaluationModel.feedback = response.feedback;
     newQuizEvaluationModel.status = "completed";
+    newQuizEvaluationModel.userAttempt = "attempted";
     await newQuizEvaluationModel.save();
 
     await Subject.findOneAndUpdate(
@@ -431,6 +444,7 @@ exports.postEvaluateQuiz = async (req, res) => {
 
 exports.getQuizResult = async (req, res) => {
   const submittionid = req.params.submittionid;
+  const userId = req.user.userId;
   try {
     const result = await QuizSubmitModel.findById(submittionid);
     if (!result) {
@@ -442,12 +456,17 @@ exports.getQuizResult = async (req, res) => {
     }
     const slug = result.slug;
 
+    const quiz = await Quiz.findById(result.quizId).select('quizType');
+
+    
     const allPrevResults = await QuizSubmitModel.find({
       slug,
       status: "completed",
-    })
+      userId,
+    }) 
       .sort({ createdAt: -1 })
       .limit(5);
+
     let eligible = false;
     let prevAccuracy = 0;
     let attempts = 0;
@@ -458,17 +477,12 @@ exports.getQuizResult = async (req, res) => {
         eligible = true;
       }
       attempts = allPrevResults.length;
-      prevAccuracy =
-        (allPrevResults[1].correctAnswers.length /
-          (allPrevResults[1].correctAnswers.length +
-            allPrevResults[1].wrongAnswers.length)) *
-        100;
+      if (allPrevResults.length >= 2) {
+        prevAccuracy = allPrevResults[1].score.accuracy || 0;
+      }
     }
 
-    const currentAccuracy =
-      (result.correctAnswers.length /
-        (result.correctAnswers.length + result.wrongAnswers.length)) *
-      100;
+    const currentAccuracy =result.score.accuracy;
 
     return res.status(200).json({
       success: true,
@@ -482,6 +496,7 @@ exports.getQuizResult = async (req, res) => {
           eligible,
           attemptsNeed: 5 - attempts,
         },
+        quizType: quiz.quizType,
       },
     });
   } catch (err) {
@@ -496,7 +511,9 @@ exports.getQuizResult = async (req, res) => {
 exports.getOneQuiz = async (req, res) => {
   const quizId = req.params.quizId;
   try {
-    const quiz = await Quiz.findById(quizId);
+    const quiz = await Quiz.findById(quizId).select(
+  "-questions.correctAnswer"
+);
     if (!quiz) {
       return res.status(404).json({
         success: false,

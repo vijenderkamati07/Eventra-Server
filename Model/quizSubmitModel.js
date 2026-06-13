@@ -29,11 +29,9 @@ const quizSubmitSchema = new mongoose.Schema(
       {
         question: {
           type: String,
-          required: true,
         },
         answer: {
           type: String,
-          required: true,
         },
       },
     ],
@@ -54,11 +52,9 @@ const quizSubmitSchema = new mongoose.Schema(
       {
         question: {
           type: String,
-          required: true,
         },
         correctAnswer: {
           type: String,
-          required: true,
         },
         tags: [{
           type: String,
@@ -69,12 +65,11 @@ const quizSubmitSchema = new mongoose.Schema(
       {
         question: {
           type: String,
-          required: true,
         },
         wrongAnswer: {
           type: String,
-          required: true,
-        },tags: [{
+        },
+        tags: [{
           type: String,
         }]
       },
@@ -87,11 +82,29 @@ const quizSubmitSchema = new mongoose.Schema(
     feedback: {
       type: String,
     },
+    userAttempt:{
+      type: String,
+      enum: ['attempted','draft','not_attempted']
+    },
     status: {
       type: String,
       enum: ["processing", "completed", "failed"],
       default: "processing",
     },
+    draftMetadata: {
+          currentQuestionIndex:{
+            type: Number,
+          },
+          remainingTime:{
+            type: Number
+          },
+          totalQuestion:{
+            type: Number
+          },
+          timeLimit:{
+            type: Number
+          },
+        }
   },
   {
     timestamps: true,

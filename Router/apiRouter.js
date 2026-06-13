@@ -4,7 +4,7 @@ const express = require('express');
 //Local Modules -> Controllers
 const { postLogin, postSignup, postLogout, getMe } = require('../Controller/authController');
 const { postGenerateQuiz, postEvaluateQuiz, getPopularSubject, getOneSubject, getOneQuiz, getQuizResult, getAllSubmittions, getHome } = require('../Controller/quizController');
-const {postWeakAreasPractise, getAdaptiveIsEligible, getAdaptiveLearningSubject} = require('../Controller/adaptiveController')
+const {postWeakAreasPractise, getAdaptiveIsEligible, getAdaptiveLearningSubject, postAdaptiveSaveDraft, getAdaptiveDraft} = require('../Controller/adaptiveController')
 const { isAuth } = require('../Middleware/isAuth');
 
 
@@ -18,7 +18,7 @@ apiRouter.get('/user/me', isAuth, getMe);
 
 //Quiz routes
 apiRouter.post('/quizzes/generate',isAuth, postGenerateQuiz);
-apiRouter.post('/quizzes/:quizId/submit',isAuth, postEvaluateQuiz);
+apiRouter.post('/quizzes/submit',isAuth, postEvaluateQuiz);
 apiRouter.get('/quizzes/popular-subjects', isAuth, getPopularSubject);
 apiRouter.get('/quizzes/subjects/:slug', isAuth, getOneSubject);
 apiRouter.get('/quizzes/find/:quizId', isAuth, getOneQuiz);
@@ -30,6 +30,8 @@ apiRouter.get('/get/home', isAuth, getHome);
 apiRouter.post('/adaptive-learning/generate-quiz',isAuth, postWeakAreasPractise);
 apiRouter.get('/get/adaptive-learning/eligiblity', isAuth, getAdaptiveIsEligible);
 apiRouter.get('/get/adaptive-learning/eligible/:slug', isAuth, getAdaptiveLearningSubject);
+apiRouter.post('/adaptive-learning/save/draft', isAuth, postAdaptiveSaveDraft);
+apiRouter.get('/get/draft/quiz/:quizId', isAuth, getAdaptiveDraft);
 
 
 module.exports = apiRouter;

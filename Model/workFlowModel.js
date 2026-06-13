@@ -15,6 +15,7 @@ const workflowSchema = new mongoose.Schema(
         "revision_plan",
         "weakArea_quiz_practise",
         "weakness_analysis",
+        "quiz_draft_save",
       ],
       required: true,
     },
